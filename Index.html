@@ -1,0 +1,55 @@
+// No início do seu componente React
+const [userEmail, setUserEmail] = useState(''); // O usuário precisará digitar ao abrir o app no GitHub
+
+// 1. Coloque aqui a URL que o Google vai te dar quando publicar o Apps Script como Web App (POST)
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw.../exec";
+
+// 2. Criar a função genérica que substitui o google.script.run
+const requestAPI = async (action, data = {}) => {
+    try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            // O Segredo contra o erro de CORS no Google Apps Script: usar text/plain
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+            body: JSON.stringify({ action: action, data: data })
+        });
+        const result = await response.json();
+        
+        if(!result.success) throw new Error(result.message);
+        return result.data;
+    } catch (error) {
+        console.error("Erro na comunicação com a API:", error);
+        throw error;
+    }
+};
+
+// 3. Exemplo de substituição dentro do useEffect (Carregar Dados Globais)
+const carregarDadosGlobais = async () => {
+    setLoadingGlobal(true);
+    try {
+        // Antigo: google.script.run.getPendentesGlobais()
+        const pendentes = await requestAPI('getPendentesGlobais');
+        setPendentesGlobais(pendentes || []);
+        
+        // Antigo: google.script.run.getHistoricoGlobal()
+        const historico = await requestAPI('getHistoricoGlobal');
+        setHistoricoGlobal(historico || []);
+    } catch (err) {
+        console.error("Falha ao carregar dados", err);
+    } finally {
+        setLoadingGlobal(false);
+    }
+};
+
+// 4. Exemplo de substituição no método de sincronizar
+const sincronizarBackend = async (item, acao) => {
+    try {
+        const payload = { item: item, acao: acao, emailRep: userEmail };
+        const res = await requestAPI('sincronizarTempoReal', payload);
+        if (res && res.success === false) {
+            console.warn("Aviso de sincronização da nuvem:", res.message);
+        }
+    } catch (err) {
+        console.error("Falha silenciosa de conexão com o servidor:", err);
+    }
+};
